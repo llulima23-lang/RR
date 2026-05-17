@@ -211,15 +211,56 @@ async function lerExcel(file) {
           const cap = toArr('CAPACITY');
           if (cap) {
             const ops=[], meses=[], vals=[], totais=[];
-            const header = cap[0];
-            for(let i=1;i<header.length;i++) if(header[i]) meses.push(String(header[i]));
-            for(let r=1;r<cap.length;r++){
-              const row=cap[r]; if(!row[0]) continue;
-              ops.push(String(row[0]));
-              const rv=[]; let tot=0;
-              for(let i=1;i<=meses.length;i++){ const v=parseNum(row[i]); rv.push(v); tot+=v; }
+            let startRow = 1;
+            let colMeses = [];
+
+            // Encontrar colunas de meses nas primeiras 10 linhas
+            for (let r=0; r<Math.min(10, cap.length); r++) {
+               const row = cap[r] || [];
+               for(let c=1; c<row.length; c++) {
+                  const m = String(row[c] || '').trim();
+                  const mLow = m.toLowerCase();
+                  if (m && !mLow.includes('total') && !mLow.includes('rótulo') && !mLow.includes('rotulo') && !mLow.includes('geral')) {
+                     // Verifica se é mês
+                     if (mLow.match(/jan|fev|mar|abr|mai|jun|jul|ago|set|out|nov|dez|mês/)) {
+                        if (!colMeses.find(x => x.colIdx === c)) {
+                           colMeses.push({ name: m, colIdx: c });
+                           meses.push(m);
+                        }
+                     }
+                  }
+               }
+               const cell0 = String(row[0]||'').toLowerCase();
+               if (cell0.includes('rótulo') || cell0.includes('rotulo')) {
+                  startRow = Math.max(startRow, r + 1);
+               }
+            }
+            
+            // Fallback se não achou meses
+            if (colMeses.length === 0 && cap[0]) {
+               for(let c=1; c<cap[0].length; c++) {
+                  const m = String(cap[0][c] || '').trim();
+                  if (m && !m.toLowerCase().includes('total') && !m.toLowerCase().includes('geral')) {
+                     colMeses.push({ name: m, colIdx: c });
+                     meses.push(m);
+                  }
+               }
+            }
+
+            for(let r=startRow; r<cap.length; r++){
+              const row=cap[r]; if(!row || !row[0]) continue;
+              const opName = String(row[0]).trim();
+              const opLower = opName.toLowerCase();
+              if (!opName || opLower.includes('rótulo') || opLower.includes('rotulo') || opLower.includes('total') || opLower.includes('geral')) continue;
+              
+              ops.push(opName);
+              const rv=[]; 
+              for(const col of colMeses){ 
+                rv.push(parseNum(row[col.colIdx])); 
+              }
               vals.push(rv);
             }
+            
             for(let i=0;i<meses.length;i++) totais.push(vals.reduce((s,r)=>s+(r[i]||0),0));
             if(ops.length) DADOS.capacity={operacoes:ops,meses,valores:vals,totais};
           }
@@ -360,15 +401,82 @@ async function lerExcel(file) {
         // AÇÕES DIGITAIS
         try {
           const adraw = toArr('AÇÕES DIGITAIS');
-          if(adraw && adraw.length>2){
-            const header=adraw[0]||[];
-            const ops=[], mar=[], abr=[], mai=[];
-            for(let r=1;r<adraw.length;r++){
-              const row=adraw[r]; if(!row||!row[0]) continue;
-              ops.push(String(row[0]));
-              mar.push(parseNum(row[1])); abr.push(parseNum(row[2])); mai.push(parseNum(row[3]));
+          if (adraw && adraw.length >= 2) {
+            let ops = [];
+            let mar = [];
+            let abr = [];
+            let mai = [];
+            
+            // Procurar a linha que tem 'MARÇO' na coluna 0 para o bloco do WhatsApp
+            let marcoRowIdx = -1;
+            let opsRowIdx = -1;
+            
+            for (let r=0; r<adraw.length; r++) {
+               const cell0 = String(adraw[r]?.[0] || '').toLowerCase().trim();
+               if (cell0 === 'março' || cell0 === 'marco') {
+                  // Achamos a primeira ocorrência de março. Assumimos que é do WhatsApp (que vem primeiro)
+                  marcoRowIdx = r;
+                  opsRowIdx = r - 1; // A linha logo acima contém as operações
+                  break;
+               }
             }
-            if(ops.length) DADOS.acoesDigitais.whatsapp={operacoes:ops,marco:mar,abril:abr,maio:mai};
+            
+            if (marcoRowIdx !== -1 && opsRowIdx !== -1) {
+               const headerRow = adraw[opsRowIdx] || [];
+               const rowMar = adraw[marcoRowIdx] || [];
+               const rowAbr = adraw[marcoRowIdx + 1] || [];
+               const rowMai = adraw[marcoRowIdx + 2] || [];
+               
+               for (let c=1; c<headerRow.length; c++) {
+                  const opName = String(headerRow[c] || '').trim();
+                  if (!opName) continue; // pula colunas vazias
+                  
+                  ops.push(opName);
+                  mar.push(parseNum(rowMar[c]));
+                  abr.push(parseNum(rowAbr[c]));
+                  mai.push(parseNum(rowMai[c]));
+               }
+               
+               if (ops.length) {
+                  DADOS.acoesDigitais.whatsapp = { operacoes: ops, marco: mar, abril: abr, maio: mai };
+                  console.log('=== AÇÕES DIGITAIS WHATSAPP PROCESSADO ===', DADOS.acoesDigitais.whatsapp);
+               }
+            }
+            
+            // Procurar Chatbot (se existir no Excel e quisermos sobrepor o estático)
+            let marcoBotRowIdx = -1;
+            for (let r = marcoRowIdx + 1; r < adraw.length; r++) {
+               const cell0 = String(adraw[r]?.[0] || '').toLowerCase().trim();
+               if (cell0 === 'março' || cell0 === 'marco') {
+                  marcoBotRowIdx = r;
+                  break;
+               }
+            }
+            
+            if (marcoBotRowIdx !== -1) {
+               let opsBot = [];
+               let marBot = [];
+               let abrBot = [];
+               let maiBot = [];
+               const headerRowBot = adraw[marcoBotRowIdx - 1] || [];
+               const rowMarBot = adraw[marcoBotRowIdx] || [];
+               const rowAbrBot = adraw[marcoBotRowIdx + 1] || [];
+               const rowMaiBot = adraw[marcoBotRowIdx + 2] || [];
+               
+               for (let c=1; c<headerRowBot.length; c++) {
+                  const opName = String(headerRowBot[c] || '').trim();
+                  if (!opName) continue;
+                  
+                  opsBot.push(opName);
+                  marBot.push(parseNum(rowMarBot[c]));
+                  abrBot.push(parseNum(rowAbrBot[c]));
+                  maiBot.push(parseNum(rowMaiBot[c]));
+               }
+               
+               if (opsBot.length) {
+                  DADOS.acoesDigitais.chatbot = { operacoes: opsBot, marco: marBot, abril: abrBot, maio: maiBot };
+               }
+            }
           }
         } catch(e) { console.error('Erro DIGITAL', e); }
 

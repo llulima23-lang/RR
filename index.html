@@ -399,20 +399,26 @@ function renderFunilTable(key) {
   const safeFmt = (v) => safeNum(v).toLocaleString('pt-BR');
 
   let html = `<thead><tr>
-    <th>Operação</th><th>Discagens</th><th>Alô</th><th>Alô%</th>
-    <th>CPC</th><th>CPC/Alô%</th><th>Promessa</th><th>Prom/CPC%</th>
+    <th style="text-align:center;">Operação</th>
+    <th style="text-align:center;">Discagens</th>
+    <th style="text-align:center;">Alô</th>
+    <th style="text-align:center;">Alô%</th>
+    <th style="text-align:center;">CPC</th>
+    <th style="text-align:center;">CPC/Alô%</th>
+    <th style="text-align:center;">Promessa</th>
+    <th style="text-align:center;">Prom/CPC%</th>
   </tr></thead><tbody>`;
   rows.forEach((r) => {
     if (!r || !r.op) return;
     html += `<tr>
-      <td>${r.op}</td>
-      <td class="num">${safeFmt(r.disc)}</td>
-      <td class="num">${safeFmt(r.alo)}</td>
-      <td class="pct">${safePct(r.alo_pct)}</td>
-      <td class="num">${safeFmt(r.cpc)}</td>
-      <td class="pct">${safePct(r.cpc_pct)}</td>
-      <td class="num">${safeFmt(r.prom)}</td>
-      <td class="pct">${safePct(r.prom_pct)}</td>
+      <td style="text-align:center;font-weight:600;color:var(--navy);">${r.op}</td>
+      <td class="num" style="text-align:center;">${safeFmt(r.disc)}</td>
+      <td class="num" style="text-align:center;">${safeFmt(r.alo)}</td>
+      <td class="pct" style="text-align:center;">${safePct(r.alo_pct)}</td>
+      <td class="num" style="text-align:center;">${safeFmt(r.cpc)}</td>
+      <td class="pct" style="text-align:center;">${safePct(r.cpc_pct)}</td>
+      <td class="num" style="text-align:center;">${safeFmt(r.prom)}</td>
+      <td class="pct" style="text-align:center;">${safePct(r.prom_pct)}</td>
     </tr>`;
   });
   html += '</tbody>';

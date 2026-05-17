@@ -25,40 +25,58 @@ function mkChart(id, config) {
 }
 
 // =========================================================
-// CAPACITY — Barras agrupadas por operação ao longo dos meses
+// CAPACITY — Barras empilhadas por operação e evolução total
 // =========================================================
 function buildCapacityChart() {
   const d = DADOS.capacity;
+  if (!d || !d.operacoes || !d.valores) return;
+
+  const palette = [
+    COLORS.navy,
+    COLORS.green,
+    COLORS.lime,
+    COLORS.greenMid,
+    COLORS.teal,
+    COLORS.orange,
+    COLORS.navyDark,
+    '#26A69A',
+    '#AB47BC',
+    '#EC407A'
+  ];
+
+  // Agentes por Operação - Stacked Bar Chart (muito mais limpo e organizado)
   mkChart('chart-capacity', {
     type: 'bar',
     data: {
       labels: d.meses,
       datasets: d.operacoes.map((op, i) => ({
         label: op,
-        data: d.valores[i],
-        backgroundColor: [COLORS.navy, COLORS.green, COLORS.lime, COLORS.greenMid][i],
-        borderRadius: 6,
+        data: d.valores[i] || [],
+        backgroundColor: palette[i % palette.length],
+        borderRadius: 4,
         borderSkipped: false,
       }))
     },
     options: {
       responsive: true, maintainAspectRatio: false,
-      plugins: { legend: { position: 'top' } },
+      plugins: {
+        legend: { position: 'top' }
+      },
       scales: {
-        x: { grid: { display: false } },
-        y: { grid: { color: '#e8eef5' }, ticks: { stepSize: 2 }, title: { display:true, text:'Agentes' } }
+        x: { stacked: true, grid: { display: false } },
+        y: { stacked: true, grid: { color: '#e8eef5' }, title: { display:true, text:'Agentes' } }
       }
     }
   });
 
-  // Totais — linha
+  // Totais — linha (sem min: 14 fixo para evitar sumir em uploads com poucos agentes)
   mkChart('chart-capacity-total', {
     type: 'line',
     data: {
       labels: d.meses,
       datasets: [{
         label: 'Total de Agentes',
-        data: d.totais,
+        data: d.totais || [],
         borderColor: COLORS.navy,
         backgroundColor: 'rgba(27,94,56,0.12)',
         fill: true,
@@ -73,7 +91,7 @@ function buildCapacityChart() {
       plugins: { legend: { display: false } },
       scales: {
         x: { grid: { display: false } },
-        y: { grid: { color: '#e8eef5' }, min: 14,
+        y: { grid: { color: '#e8eef5' }, beginAtZero: true,
           title: { display:true, text:'Total' } }
       }
     }
