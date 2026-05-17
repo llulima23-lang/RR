@@ -598,28 +598,33 @@ if (typeof LOGO_B64 !== 'undefined') {
 }
 
 // ========================================================
-// RENDER ALL (Acionado pelo Firebase)
+// RENDER ALL (Acionado pelo Firebase ou após upload)
 // ========================================================
 window.renderAll = function() {
-  if (DADOS.periodo) {
-    document.getElementById('capa-periodo').textContent = DADOS.periodo;
-    document.getElementById('topbar-periodo').textContent = 'Período de Referência: ' + DADOS.periodo;
-  }
-  renderCapacityTable();
-  if (typeof buildCapacityChart === 'function') buildCapacityChart();
-  
-  renderFunilTable(currentFunilTab);
-  renderFunilImages(currentFunilTab);
-  if (typeof buildFunilCharts === 'function') buildFunilCharts(currentFunilTab);
-  if (typeof buildQuartilChart === 'function') {
-    buildQuartilChart('tarde');
-    buildQuartilChart('manha');
-  }
-  
-  renderAcoesDigitaisTables();
-  if (typeof buildAcoesDigitaisCharts === 'function') buildAcoesDigitaisCharts();
-  renderMapaDigital();
-  renderDadosGerais();
+  try {
+    if (DADOS.periodo) {
+      document.getElementById('capa-periodo').textContent = DADOS.periodo;
+      document.getElementById('topbar-periodo').textContent = 'Período de Referência: ' + DADOS.periodo;
+    }
+  } catch(e) { console.warn('renderAll: erro período', e); }
+
+  try { renderCapacityTable(); } catch(e) { console.warn('renderAll: erro capacity table', e); }
+  try { if (typeof buildCapacityChart === 'function') buildCapacityChart(); } catch(e) { console.warn('renderAll: erro capacity chart', e); }
+
+  try { renderFunilTable(currentFunilTab); } catch(e) { console.warn('renderAll: erro funil table', e); }
+  try { renderFunilImages(currentFunilTab); } catch(e) { console.warn('renderAll: erro funil images', e); }
+  try { if (typeof buildFunilCharts === 'function') buildFunilCharts(currentFunilTab); } catch(e) { console.warn('renderAll: erro funil charts', e); }
+  try {
+    if (typeof buildQuartilChart === 'function') {
+      buildQuartilChart('tarde');
+      buildQuartilChart('manha');
+    }
+  } catch(e) { console.warn('renderAll: erro quartil', e); }
+
+  try { renderAcoesDigitaisTables(); } catch(e) { console.warn('renderAll: erro acoes digitais', e); }
+  try { if (typeof buildAcoesDigitaisCharts === 'function') buildAcoesDigitaisCharts(); } catch(e) { console.warn('renderAll: erro acoes digitais charts', e); }
+  try { renderMapaDigital(); } catch(e) { console.warn('renderAll: erro mapa digital', e); }
+  try { renderDadosGerais(); } catch(e) { console.warn('renderAll: erro dados gerais', e); }
 };
 
 // ========================================================
@@ -629,19 +634,22 @@ document.getElementById('upload-excel').addEventListener('change', async (e) => 
   const file = e.target.files[0];
   if (!file) return;
   const status = document.getElementById('upload-status');
-  status.textContent = '⏳ Lendo planilha... e subindo para nuvem';
+  status.textContent = '⏳ Lendo planilha...';
+  _isUploading = true;
   try {
     await lerExcel(file);
     // Força atualização da interface localmente agora mesmo
     if (typeof window.renderAll === 'function') {
       window.renderAll();
     }
-    status.textContent = '✅ Dados atualizados na Nuvem!';
+    status.textContent = '✅ Dados atualizados!';
     setTimeout(() => { status.textContent = ''; }, 4000);
   } catch(err) {
     status.textContent = '❌ Erro: ' + err.message;
     console.error(err);
   }
+  // Libera o Firebase para renderAll depois de 2s de segurança
+  setTimeout(() => { _isUploading = false; }, 2000);
   e.target.value = '';
 });
 </script>

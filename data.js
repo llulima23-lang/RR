@@ -117,9 +117,6 @@ const db = firebase.database();
 function fixFirebaseData(obj) {
   if (obj === null || obj === undefined) return obj;
   if (typeof obj !== 'object') return obj;
-
-  // Verifica se é um "objeto falso" que deveria ser array
-  // (Firebase transforma [a, b, null] em {"0": a, "1": b})
   if (!Array.isArray(obj)) {
     const keys = Object.keys(obj);
     const allNumeric = keys.length > 0 && keys.every(k => /^\d+$/.test(k));
@@ -132,8 +129,6 @@ function fixFirebaseData(obj) {
       return arr;
     }
   }
-
-  // Se é array de verdade ou objeto normal, processa filhos
   if (Array.isArray(obj)) {
     return obj.map(item => fixFirebaseData(item));
   }
@@ -145,33 +140,38 @@ function fixFirebaseData(obj) {
 }
 
 // ============================================================
-// LISTENER DO FIREBASE — carrega dados da nuvem
+// FIREBASE — Conexão defensiva (NÃO quebra se Firebase falhar)
 // ============================================================
-let _firebaseReady = false;
+let _firebaseOk = false;
+let _isUploading = false; // flag para evitar renderAll duplo durante upload
 
-db.ref('dashboard/DADOS').on('value', (snapshot) => {
-  const raw = snapshot.val();
-  if (!raw) return;
+try {
+  db.ref('dashboard/DADOS').on('value', (snapshot) => {
+    try {
+      const raw = snapshot.val();
+      if (!raw) return;
+      const cloudData = fixFirebaseData(raw);
+      DADOS = cloudData;
+      _firebaseOk = true;
+      // Não re-renderiza se estamos no meio de um upload (o upload já cuida disso)
+      if (!_isUploading && typeof window.renderAll === 'function') {
+        window.renderAll();
+      }
+    } catch(e) {
+      console.warn('Firebase: erro ao processar dados da nuvem, usando dados locais.', e);
+    }
+  });
+} catch(e) {
+  console.warn('Firebase: não foi possível conectar. Dashboard funcionará apenas localmente.', e);
+}
 
-  // Corrige estruturas que o Firebase transformou de array para objeto
-  const cloudData = fixFirebaseData(raw);
-  DADOS = cloudData;
-  _firebaseReady = true;
-
-  // Só chama renderAll se a página já tiver terminado de carregar
-  if (typeof window.renderAll === 'function') {
-    window.renderAll();
-  }
-});
-
-// Quando a página terminar de carregar, se o Firebase já tiver
-// entregado dados mas renderAll não existia ainda, redesenha agora.
+// Quando a página terminar de carregar, se o Firebase já tiver respondido, redesenha.
 document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => {
-    if (_firebaseReady && typeof window.renderAll === 'function') {
+    if (_firebaseOk && typeof window.renderAll === 'function') {
       window.renderAll();
     }
-  }, 500);
+  }, 800);
 });
 
 // ============================================================
