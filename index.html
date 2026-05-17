@@ -389,20 +389,30 @@ let currentFunilTab = 'abrilGeral';
 function renderFunilTable(key) {
   const rows = DADOS.funil[key];
   const tbl = document.getElementById('tbl-funil');
+  if (!rows || !Array.isArray(rows) || rows.length === 0) {
+    tbl.innerHTML = '<tbody><tr><td colspan="8" style="text-align:center;color:var(--muted);">Sem dados para esta aba.</td></tr></tbody>';
+    document.getElementById('funil-insight').innerHTML = '';
+    return;
+  }
+  const safeNum = (v) => (typeof v === 'number' && !isNaN(v)) ? v : 0;
+  const safePct = (v) => ((safeNum(v)) * 100).toFixed(1) + '%';
+  const safeFmt = (v) => safeNum(v).toLocaleString('pt-BR');
+
   let html = `<thead><tr>
     <th>Operação</th><th>Discagens</th><th>Alô</th><th>Alô%</th>
     <th>CPC</th><th>CPC/Alô%</th><th>Promessa</th><th>Prom/CPC%</th>
   </tr></thead><tbody>`;
-  rows.forEach((r, i) => {
+  rows.forEach((r) => {
+    if (!r || !r.op) return;
     html += `<tr>
       <td>${r.op}</td>
-      <td class="num">${r.disc.toLocaleString('pt-BR')}</td>
-      <td class="num">${r.alo.toLocaleString('pt-BR')}</td>
-      <td class="pct">${(r.alo_pct*100).toFixed(1)}%</td>
-      <td class="num">${r.cpc.toLocaleString('pt-BR')}</td>
-      <td class="pct">${(r.cpc_pct*100).toFixed(1)}%</td>
-      <td class="num">${r.prom.toLocaleString('pt-BR')}</td>
-      <td class="pct">${(r.prom_pct*100).toFixed(1)}%</td>
+      <td class="num">${safeFmt(r.disc)}</td>
+      <td class="num">${safeFmt(r.alo)}</td>
+      <td class="pct">${safePct(r.alo_pct)}</td>
+      <td class="num">${safeFmt(r.cpc)}</td>
+      <td class="pct">${safePct(r.cpc_pct)}</td>
+      <td class="num">${safeFmt(r.prom)}</td>
+      <td class="pct">${safePct(r.prom_pct)}</td>
     </tr>`;
   });
   html += '</tbody>';
@@ -419,22 +429,31 @@ function renderFunilTable(key) {
 async function renderFunilImages(key) {
   const fd = DADOS.funil[key];
   const container = document.getElementById('funil-images-container');
+  if (!fd || !Array.isArray(fd) || fd.length === 0) {
+    container.innerHTML = '<div style="color:var(--muted)">Sem dados de funil para esta aba.</div>';
+    return;
+  }
   container.innerHTML = '<div style="color:var(--muted)">⏳ Desenhando funis...</div>';
-  if (!fd || !fd.length) return;
-  const funnels = await Promise.all(fd.map(r => funnelImg(r, r.op, 260, 260)));
-  container.innerHTML = '';
-  funnels.forEach(imgData => {
-    const img = document.createElement('img');
-    img.src = imgData;
-    img.style.width = '260px';
-    img.style.height = '260px';
-    img.style.objectFit = 'contain';
-    img.style.background = '#fff';
-    img.style.borderRadius = '8px';
-    img.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
-    img.style.padding = '10px';
-    container.appendChild(img);
-  });
+  try {
+    const validRows = fd.filter(r => r && r.op);
+    const funnels = await Promise.all(validRows.map(r => funnelImg(r, r.op, 260, 260)));
+    container.innerHTML = '';
+    funnels.forEach(imgData => {
+      const img = document.createElement('img');
+      img.src = imgData;
+      img.style.width = '260px';
+      img.style.height = '260px';
+      img.style.objectFit = 'contain';
+      img.style.background = '#fff';
+      img.style.borderRadius = '8px';
+      img.style.boxShadow = '0 1px 3px rgba(0,0,0,0.1)';
+      img.style.padding = '10px';
+      container.appendChild(img);
+    });
+  } catch(e) {
+    console.warn('Erro ao desenhar funis:', e);
+    container.innerHTML = '<div style="color:var(--red)">Erro ao desenhar funis.</div>';
+  }
 }
 
 function switchFunilTab(key, btn) {

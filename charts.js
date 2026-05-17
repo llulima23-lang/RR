@@ -85,9 +85,11 @@ function buildCapacityChart() {
 // =========================================================
 function buildFunilCharts(tabKey) {
   const rows = DADOS.funil[tabKey];
-  const ops  = rows.map(r => r.op);
-  const cpcPcts  = rows.map(r => +(r.cpc_pct * 100).toFixed(1));
-  const promPcts = rows.map(r => +(r.prom_pct * 100).toFixed(1));
+  if (!rows || !Array.isArray(rows) || rows.length === 0) return;
+  const safeNum = (v) => (typeof v === 'number' && !isNaN(v)) ? v : 0;
+  const ops  = rows.filter(r => r && r.op).map(r => r.op);
+  const cpcPcts  = rows.filter(r => r && r.op).map(r => +(safeNum(r.cpc_pct) * 100).toFixed(1));
+  const promPcts = rows.filter(r => r && r.op).map(r => +(safeNum(r.prom_pct) * 100).toFixed(1));
 
   mkChart('chart-funil-conv', {
     type: 'bar',
@@ -115,7 +117,7 @@ function buildFunilCharts(tabKey) {
       labels: ops,
       datasets: [{
         label: 'Promessas',
-        data: rows.map(r => r.prom),
+        data: rows.filter(r => r && r.op).map(r => safeNum(r.prom)),
         backgroundColor: [COLORS.navy, COLORS.green, COLORS.lime, COLORS.greenMid],
         borderRadius: 8,
       }]

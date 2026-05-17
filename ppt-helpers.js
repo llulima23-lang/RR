@@ -27,6 +27,7 @@ async function chartImg(type, data, opts, W=900, H=420) {
 
 // Desenha funil de uma operação
 async function funnelImg(row, title, W=340, H=320) {
+  const safeNum = (v) => (typeof v === 'number' && !isNaN(v)) ? v : 0;
   const c = document.createElement('canvas');
   c.width=W; c.height=H; c.style.cssText='position:fixed;left:-9999px;';
   document.body.appendChild(c);
@@ -35,13 +36,13 @@ async function funnelImg(row, title, W=340, H=320) {
 
   // título
   ctx.fillStyle='#1B5E38'; ctx.font='bold 12px Arial';
-  ctx.textAlign='center'; ctx.fillText(title, W/2-30, 18);
+  ctx.textAlign='center'; ctx.fillText(title || '', W/2-30, 18);
 
   const lvs = [
-    {lbl:'DISCAGENS', val:row.disc, pctLbl:'100%',          clr:'#8DC642', w:0.92},
-    {lbl:'ALÔ',       val:row.alo,  pctLbl:(row.alo_pct*100).toFixed(1)+'%', clr:'#5FAD41', w:0.72},
-    {lbl:'CPC',       val:row.cpc,  pctLbl:(row.cpc_pct*100).toFixed(1)+'%', clr:'#2E7D4F', w:0.52},
-    {lbl:'PROMESSA',  val:row.prom, pctLbl:(row.prom_pct*100).toFixed(1)+'%', clr:'#1B5E38', w:0.34},
+    {lbl:'DISCAGENS', val:safeNum(row.disc), pctLbl:'100%',          clr:'#8DC642', w:0.92},
+    {lbl:'ALÔ',       val:safeNum(row.alo),  pctLbl:(safeNum(row.alo_pct)*100).toFixed(1)+'%', clr:'#5FAD41', w:0.72},
+    {lbl:'CPC',       val:safeNum(row.cpc),  pctLbl:(safeNum(row.cpc_pct)*100).toFixed(1)+'%', clr:'#2E7D4F', w:0.52},
+    {lbl:'PROMESSA',  val:safeNum(row.prom), pctLbl:(safeNum(row.prom_pct)*100).toFixed(1)+'%', clr:'#1B5E38', w:0.34},
   ];
   const fW=210, fX=20, sY=26, lH=(H-sY-10)/4;
   lvs.forEach((lv,i)=>{
